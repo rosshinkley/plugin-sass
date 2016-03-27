@@ -10,6 +10,7 @@ import path from 'path';
 import postcss from 'postcss';
 import reqwest from 'reqwest';
 import url from 'url';
+import merge from 'lodash/object/merge';
 
 import resolvePath from './resolve-path';
 
@@ -65,6 +66,7 @@ const compile = scss => {
       return resolve('');
     }
     importSass.then(sass => {
+      const options = merge(System.sassOptions||{}, scss.options);
       sass.compile(content, scss.options, ({ status, text, formatted }) => {
         if (status === 0) {
           postcss([autoprefixer]).process(text).then(({ css }) => {

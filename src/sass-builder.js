@@ -1,6 +1,7 @@
 import autoprefixer from 'autoprefixer';
 import fs from 'fs';
 import isEmpty from 'lodash/lang/isEmpty';
+import merge from 'lodash/object/merge';
 import path from 'path';
 import postcss from 'postcss';
 import sass from 'sass.js';
@@ -71,11 +72,12 @@ export default (loads, compileOpts) => {
   const compilePromise = load => {
     return new Promise((resolve, reject) => {
       const urlBase = `${path.dirname(load.address)}/`;
-      const options = {
+      const options = merge(System.sassOptions||{}, {
         style: sass.style.compressed,
         indentedSyntax: load.address.endsWith('.sass'),
         importer: { urlBase },
-      };
+      });
+
       // Occurs on empty files
       if (isEmpty(load.source)) {
         return resolve('');
