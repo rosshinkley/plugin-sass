@@ -14,15 +14,48 @@ import merge from 'lodash/object/merge';
 
 import resolvePath from './resolve-path';
 
+const preloadFromConfig = (sass) => {
+  return new Promise((resolve, reject) => {
+    if(Array.isArray((System.sassOptions||{}).includePaths)){
+      return System.sassOptions.includePaths.reduce( (accumulator, path) => {
+        return accumulator.then( () => { 
+          return new Promise((resolve, reject) => {
+            sass.lazyFiles(path.base || '/', '', path.files||[], function(){
+              resolve();
+            });
+          });
+        })
+      }, Promise.resolve())
+      .then( () => {
+        resolve();
+      })
+    }else{
+      return resolve();
+    }
+  });
+};
+
 const importSass = new Promise((resolve, reject) => {
   if (Modernizr.webworkers) {
     System.import('sass.js/dist/sass', __moduleName).then(Sass => {
-      System.normalize('sass.js/dist/sass.worker', __moduleName).then(worker => {
+      System.normalize('sass.js/dist/sass.worker', __moduleName)
+      .then(worker => {
+        preloadFromConfig(Sass).then( () =>{
+          return worker;
+        })
+      })
+      .then(worker => {
         resolve(new Sass(worker));
       });
     }).catch(err => reject(err));
   } else {
-    System.import('sass.js/dist/sass.sync', __moduleName).then(Sass => {
+    System.import('sass.js/dist/sass.sync', __moduleName)
+    .then(Sass => {
+      preloadFromConfig(Sass).then( () => {
+        return Sass;
+      })
+    })
+    .then(Sass => {
       resolve(Sass);
     }).catch(err => reject(err));
   }
