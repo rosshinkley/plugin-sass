@@ -7,6 +7,7 @@ import postcss from 'postcss';
 import sass from 'sass.js';
 
 import resolvePath from './resolve-path';
+import preloadFromConfig from './preload-from-config';
 
 const cssInject = "(function(c){if (typeof document == 'undefined') return; var d=document,a='appendChild',i='styleSheet',s=d.createElement('style');s.type='text/css';d.getElementsByTagName('head')[0][a](s);s[i]?s[i].cssText=c:s[a](d.createTextNode(c));})";
 const isWin = process.platform.match(/^win/);
@@ -41,29 +42,30 @@ const fromFileURL = url => {
   return !isWin ? `/${address}` : address.replace(/\//g, '\\');
 };
 
-// intercept file loading requests (@import directive) from libsass
-sass.importer((request, done) => {
-  // Currently only supporting scss imports due to
-  // https://github.com/sass/libsass/issues/1695
-  let content;
-  let resolved;
-  let readImportPath;
-  let readPartialPath;
-  resolvePath(request)
-    .then(importUrl => {
-      resolved = importUrl;
-      const partialUrl = importUrl.replace(/\/([^/]*)$/, '/_$1');
-      readImportPath = fromFileURL(importUrl);
+preloadFromConfig(sass).then( () => {
+  // intercept file loading requests (@import directive) from libsass
+  sass.importer((request, done) => {
+    // Currently only supporting scss imports due to
+    // https://github.com/sass/libsass/issues/1695
+    let content;
+    let resolved;
+    let readImportPath;
+    let readPartialPath;
+    resolvePath(request)
+      .then(importUrl => {
+       resolved = importUrl;
+       const partialUrl = importUrl.replace(/\/([^/]*)$/, '/_$1');
+       readImportPath = fromFileURL(importUrl);
       readPartialPath = fromFileURL(partialUrl);
-      return loadFile(readPartialPath);
-    })
-    .then(data => content = data)
-    .catch(() => loadFile(readImportPath))
-    .then(data => content = data)
-    .then(() => done({ content, path: resolved }))
-    .catch(() => done());
-});
-
+        return loadFile(readPartialPath);
+     })
+     .then(data => content = data)
+     .catch(() => loadFile(readImportPath))
+     .then(data => content = data)
+     .then(() => done({ content, path: resolved }))
+     .catch(() => done());
+  });
+}
 export default (loads, compileOpts) => {
   const stubDefines = loads.map(load => {
     return `${(compileOpts.systemGlobal || 'System')}\.register('${load.name}', [], false, function() {});`;
